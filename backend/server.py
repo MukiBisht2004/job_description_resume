@@ -278,6 +278,9 @@ async def download_resume(analysis_id: str):
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=f"tailored_resume_{analysis_id[:8]}.docx"
         )
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 404)
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error downloading resume: {str(e)}")
 
