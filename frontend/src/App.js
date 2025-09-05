@@ -42,6 +42,7 @@ function App() {
 
       const data = await response.json();
       setResumeText(data.text);
+      setOriginalDocxContent(data.docx_content); // Store base64 DOCX content
       setUploadedFile(file.name);
     } catch (error) {
       alert('Error uploading resume: ' + error.message);
