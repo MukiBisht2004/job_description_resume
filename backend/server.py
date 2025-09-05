@@ -45,6 +45,7 @@ app.add_middleware(
 class ResumeAnalysis(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     original_text: str
+    original_docx_content: str  # Base64 encoded DOCX content
     job_description: str
     tailored_resume: str
     ats_score: int
