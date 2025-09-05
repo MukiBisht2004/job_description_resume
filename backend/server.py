@@ -333,15 +333,19 @@ async def upload_resume(file: UploadFile = File(...)):
     
     try:
         content = await file.read()
-        text = extract_text_from_docx(content)
+        text, original_docx = extract_text_and_structure_from_docx(content)
         
         if not text.strip():
             raise HTTPException(status_code=400, detail="Could not extract text from resume")
         
+        # Encode DOCX content to base64 for storage
+        docx_base64 = base64.b64encode(original_docx).decode('utf-8')
+        
         return {
             "success": True,
             "text": text,
-            "filename": file.filename
+            "filename": file.filename,
+            "docx_content": docx_base64  # Include for frontend to store
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing resume: {str(e)}")
