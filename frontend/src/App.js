@@ -161,7 +161,6 @@ function App() {
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">1. Upload Your Resume</h2>
               <div className="space-y-4">
-                  <div className="space-y-4">
                 <div 
                   className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
