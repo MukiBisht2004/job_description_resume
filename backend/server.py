@@ -285,7 +285,7 @@ async def download_resume(analysis_id: str):
 async def get_analyses():
     """Get all resume analyses"""
     try:
-        analyses = await db.resume_analyses.find().sort("created_at", -1).limit(50).to_list(length=None)
+        analyses = await db.resume_analyses.find({}, {"_id": 0}).sort("created_at", -1).limit(50).to_list(length=None)
         return {"analyses": analyses}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching analyses: {str(e)}")
