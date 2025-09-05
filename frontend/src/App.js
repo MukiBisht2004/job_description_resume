@@ -57,10 +57,16 @@ function App() {
       return;
     }
 
+    if (!originalDocxContent) {
+      alert('Original resume formatting not available. Please re-upload your resume.');
+      return;
+    }
+
     setLoading(true);
     const formData = new FormData();
     formData.append('resume_text', resumeText);
     formData.append('job_description', jobDescription);
+    formData.append('original_docx_content', originalDocxContent); // Include base64 DOCX
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/tailor-resume`, {
