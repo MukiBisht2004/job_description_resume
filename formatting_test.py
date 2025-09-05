@@ -394,10 +394,21 @@ class FormattingTester:
             # Test tailoring without original_docx_content
             job_description = "Software Engineer position requiring Python and API development skills."
             
+            # Create a minimal DOCX for fallback test
+            minimal_doc = Document()
+            minimal_doc.add_paragraph("John Doe")
+            minimal_doc.add_paragraph("Software Developer")
+            minimal_doc.add_paragraph("Experience with Python and web development.")
+            
+            minimal_buffer = io.BytesIO()
+            minimal_doc.save(minimal_buffer)
+            minimal_buffer.seek(0)
+            minimal_docx_base64 = base64.b64encode(minimal_buffer.getvalue()).decode('utf-8')
+            
             data = {
                 'resume_text': "John Doe\nSoftware Developer\nExperience with Python and web development.",
                 'job_description': job_description,
-                'original_docx_content': ""  # Empty to test fallback
+                'original_docx_content': minimal_docx_base64  # Valid DOCX for fallback test
             }
             
             response = self.session.post(f"{BACKEND_URL}/tailor-resume", data=data, timeout=30)
