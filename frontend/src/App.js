@@ -5,6 +5,7 @@ const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001
 
 function App() {
   const [resumeText, setResumeText] = useState('');
+  const [originalDocxContent, setOriginalDocxContent] = useState(''); // Store base64 DOCX
   const [jobDescription, setJobDescription] = useState('');
   const [tailoredResume, setTailoredResume] = useState('');
   const [atsScore, setAtsScore] = useState(0);
