@@ -353,7 +353,8 @@ async def upload_resume(file: UploadFile = File(...)):
 @app.post("/api/tailor-resume")
 async def tailor_resume(
     resume_text: str = Form(...),
-    job_description: str = Form(...)
+    job_description: str = Form(...),
+    original_docx_content: str = Form(...)  # Base64 encoded DOCX
 ):
     """Tailor resume for specific job description"""
     try:
@@ -366,6 +367,7 @@ async def tailor_resume(
         # Save to database
         analysis = ResumeAnalysis(
             original_text=resume_text,
+            original_docx_content=original_docx_content,  # Store base64 DOCX
             job_description=job_description,
             tailored_resume=tailored_resume,
             ats_score=ats_analysis.score,
