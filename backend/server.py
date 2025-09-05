@@ -75,36 +75,161 @@ def get_llm_chat(session_id: str, system_message: str):
     return chat
 
 # Helper functions
-def extract_text_from_docx(file_content: bytes) -> str:
-    """Extract text from DOCX file"""
+def extract_text_and_structure_from_docx(file_content: bytes) -> tuple:
+    """Extract text and preserve document structure from DOCX file"""
     try:
         doc = Document(io.BytesIO(file_content))
-        text = []
+        text_parts = []
+        
         for paragraph in doc.paragraphs:
             if paragraph.text.strip():
-                text.append(paragraph.text)
-        return '\n'.join(text)
+                text_parts.append(paragraph.text)
+        
+        full_text = '\n'.join(text_parts)
+        return full_text, file_content
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error reading DOCX file: {str(e)}")
 
-def create_docx_from_text(text: str, filename: str = "tailored_resume.docx") -> bytes:
-    """Create a DOCX file from text"""
+def create_tailored_docx_with_formatting(original_docx_content: bytes, original_text: str, tailored_text: str) -> bytes:
+    """Create tailored DOCX while preserving original formatting"""
+    try:
+        # Load original document
+        original_doc = Document(io.BytesIO(original_docx_content))
+        
+        # Split both texts into lines for mapping
+        original_lines = [line.strip() for line in original_text.split('\n') if line.strip()]
+        tailored_lines = [line.strip() for line in tailored_text.split('\n') if line.strip()]
+        
+        # Create a mapping between original and tailored content
+        line_mapping = {}
+        
+        # Simple approach: map lines by position and similarity
+        for i, orig_line in enumerate(original_lines):
+            if i < len(tailored_lines):
+                line_mapping[orig_line] = tailored_lines[i]
+            else:
+                line_mapping[orig_line] = orig_line  # Keep original if no tailored version
+        
+        # Process the document paragraphs
+        for paragraph in original_doc.paragraphs:
+            if paragraph.text.strip():
+                original_para_text = paragraph.text.strip()
+                
+                # Find best match in tailored content
+                best_match = None
+                best_score = 0
+                
+                for tailored_line in tailored_lines:
+                    # Simple similarity check
+                    common_words = set(original_para_text.lower().split()) & set(tailored_line.lower().split())
+                    score = len(common_words)
+                    
+                    if score > best_score:
+                        best_score = score
+                        best_match = tailored_line
+                
+                # Replace content while preserving formatting
+                if best_match and best_score > 0:
+                    # Clear existing runs but keep paragraph formatting
+                    for run in paragraph.runs:
+                        run.text = ""
+                    
+                    # Add new text with original formatting of first run
+                    if paragraph.runs:
+                        paragraph.runs[0].text = best_match
+                    else:
+                        paragraph.text = best_match
+                elif not best_match:
+                    # For new content not in original, try to find similar sections
+                    for tailored_line in tailored_lines:
+                        # Check if this line should replace current paragraph
+                        if any(word in tailored_line.lower() for word in original_para_text.lower().split()[:3]):
+                            # Clear and replace
+                            for run in paragraph.runs:
+                                run.text = ""
+                            if paragraph.runs:
+                                paragraph.runs[0].text = tailored_line
+                            else:
+                                paragraph.text = tailored_line
+                            break
+        
+        # Save the modified document
+        buffer = io.BytesIO()
+        original_doc.save(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()
+        
+    except Exception as e:
+        # Fallback to simple text replacement
+        return create_simple_formatted_docx(tailored_text)
+
+def create_simple_formatted_docx(text: str) -> bytes:
+    """Fallback: Create a nicely formatted DOCX file from text"""
     try:
         doc = Document()
         
-        # Split text into paragraphs and add to document
-        paragraphs = text.split('\n')
-        for para in paragraphs:
-            if para.strip():
-                doc.add_paragraph(para)
+        # Split text into sections and format appropriately
+        lines = text.split('\n')
+        current_section = ""
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check if this is a heading (name, section headers)
+            if (len(line.split()) <= 4 and 
+                any(keyword in line.lower() for keyword in ['experience', 'education', 'skills', 'summary', 'objective', 'contact', 'certifications', 'projects']) or
+                (line.isupper() and len(line) < 50) or
+                (not any(c in line for c in ['.', ',', ';']) and len(line.split()) <= 3)):
+                
+                # Add as heading
+                heading = doc.add_heading(line, level=1)
+                heading.alignment = 0  # Left align
+                
+            elif line.startswith('•') or line.startswith('-') or line.startswith('*'):
+                # Bullet point
+                p = doc.add_paragraph(line, style='List Bullet')
+                
+            else:
+                # Regular paragraph
+                p = doc.add_paragraph(line)
+                
+                # Check if it's a name (first line, usually)
+                if len(doc.paragraphs) == 1 and not any(keyword in line.lower() for keyword in ['email', 'phone', 'address']):
+                    # Make it bold and larger (name)
+                    for run in p.runs:
+                        run.bold = True
+                        run.font.size = 16
         
         # Save to bytes
         buffer = io.BytesIO()
         doc.save(buffer)
         buffer.seek(0)
         return buffer.getvalue()
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating DOCX file: {str(e)}")
+        # Ultimate fallback
+        doc = Document()
+        paragraphs = text.split('\n')
+        for para in paragraphs:
+            if para.strip():
+                doc.add_paragraph(para)
+        
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer.getvalue()
+
+# Keep old functions for backward compatibility
+def extract_text_from_docx(file_content: bytes) -> str:
+    """Extract text from DOCX file - backward compatibility wrapper"""
+    text, _ = extract_text_and_structure_from_docx(file_content)
+    return text
+
+def create_docx_from_text(text: str, filename: str = "tailored_resume.docx") -> bytes:
+    """Create a DOCX file from text - backward compatibility wrapper"""
+    return create_simple_formatted_docx(text)
 
 async def tailor_resume_with_ai(resume_text: str, job_description: str) -> str:
     """Use AI to tailor resume for specific job"""
