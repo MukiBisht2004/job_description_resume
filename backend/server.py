@@ -390,15 +390,26 @@ async def tailor_resume(
 
 @app.get("/api/download-resume/{analysis_id}")
 async def download_resume(analysis_id: str):
-    """Download tailored resume as DOCX"""
+    """Download tailored resume as DOCX with original formatting"""
     try:
         # Get analysis from database
         analysis = await db.resume_analyses.find_one({"id": analysis_id})
         if not analysis:
             raise HTTPException(status_code=404, detail="Analysis not found")
         
-        # Create DOCX file
-        docx_content = create_docx_from_text(analysis["tailored_resume"])
+        # Decode original DOCX content from base64
+        try:
+            original_docx_bytes = base64.b64decode(analysis["original_docx_content"])
+        except Exception:
+            # Fallback to simple formatting if no original DOCX
+            docx_content = create_simple_formatted_docx(analysis["tailored_resume"])
+        else:
+            # Create tailored DOCX with original formatting
+            docx_content = create_tailored_docx_with_formatting(
+                original_docx_bytes,
+                analysis["original_text"],
+                analysis["tailored_resume"]
+            )
         
         # Save to temporary file
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
